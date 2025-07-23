@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Слушатель хип-хоп альбомов</title>
+	<link rel="icon" href="E:\Downloads\tape.ico" type="image/x-icon">
+    <style>
+        /* Стили остаются без изменений, кроме добавленных для кнопок импорта/экспорта */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #ffffff;
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+            padding-bottom: 150px; /* Отступ снизу, чтобы футер не перекрывал контент */
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px 0;
+            background: linear-gradient(to right, #4242ff, #1a73e8);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 15px; /* Уменьшен отступ */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+            opacity: 0.9;
+        }
+
+        /* --- Стили для кнопок импорта/экспорта --- */
+        .controls-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .control-btn {
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        #exportBtn {
+            background-color: #1a73e8;
+            color: white;
+        }
+        #exportBtn:hover {
+            background-color: #1665c8;
+        }
+
+        #importBtn {
+            background-color: #28a745;
+            color: white;
+        }
+        #importBtn:hover {
+            background-color: #218838;
+        }
+        
+        .albums-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 25px;
+            max-width: 1400px;
+            margin: 0 auto 50px;
+        }
+        
+        .album {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+            cursor: grab; /* Указатель для перетаскивания */
+        }
+
+        .album.dragging {
+            opacity: 0.5;
+            transform: scale(0.98);
+        }
+        
+        .album:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .album-cover {
+            width: 100%;
+            height: 240px;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .album-info {
+            padding: 15px;
+        }
+        
+        .album-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: #222;
+            line-height: 1.3;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+        
+        .album-year {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .ratings-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+
+        .rating-group {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .album-rating {
+            display: flex;
+            direction: rtl; 
+            justify-content: flex-end;
+        }
+        
+        .album-rating .star {
+            font-size: 24px;
+            color: #ddd;
+            cursor: pointer;
+            transition: color 0.2s ease-in-out;
+        }
+
+        .album-rating .star::before {
+             content: '★';
+        }
+        
+        .album-rating.yellow .star:hover,
+        .album-rating.yellow .star:hover ~ .star {
+            color: #ffc107;
+        }
+
+        .album-rating.yellow .star.rated,
+        .album-rating.yellow .star.rated ~ .star {
+            background: linear-gradient(to top, #FFD700, #FFFACD);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            color: initial;
+        }
+
+        .album-rating.red .star:hover,
+        .album-rating.red .star:hover ~ .star {
+            color: #ff416c;
+        }
+
+        .album-rating.red .star.rated,
+        .album-rating.red .star.rated ~ .star {
+            background: linear-gradient(to top, #ff416c, #ff4b2b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            color: initial;
+        }
+
+        .album-checkbox {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 10;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            opacity: 0.8;
+            transition: all 0.2s;
+        }
+        
+        .album-checkbox:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        
+        .album-checkbox:checked {
+            accent-color: #ff4b2b;
+        }
+        
+        .album-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(100, 100, 100, 0.5);
+            display: none;
+            pointer-events: none;
+        }
+        
+        .album-checkbox:checked ~ .album-overlay {
+            display: block;
+        }
+        
+        .album-checkbox:checked ~ .album-info .album-title,
+        .album-checkbox:checked ~ .album-info .album-year {
+            color: #999;
+        }
+        
+        .progress-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 -2px 15px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+        }
+        
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #444;
+        }
+        
+        .progress-bar {
+            height: 25px;
+            background-color: #e9ecef;
+            border-radius: 50px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #ff416c, #ff4b2b);
+            border-radius: 50px;
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 15px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .counter {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 1.1rem;
+            color: #555;
+        }
+        
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 2.2rem;
+            }
+            .albums-container {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+            .album-cover {
+                height: 200px;
+            }
+            .controls-container {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 0 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Слушатель хип-хоп альбомов</h1>
+        <p>Отмечайте прослушанные альбомы, ставьте оценки и меняйте порядок перетаскиванием</p>
+    </div>
+    
+    <div class="controls-container">
+        <button id="importBtn" class="control-btn">Импорт данных</button>
+        <button id="exportBtn" class="control-btn">Экспорт данных</button>
+        <input type="file" id="importFile" accept=".json" style="display: none;">
+    </div>
+
+    <div class="albums-container" id="albumsContainer">
+        <!-- Альбомы будут добавляться через JavaScript -->
+    </div>
+    
+    <div class="progress-container">
+        <div class="progress-header">
+            <span>Ваш прогресс:</span>
+            <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill">0%</div>
+        </div>
+        <div class="counter" id="counter">0 из 0 альбомов прослушано</div>
+    </div>
+
+    <script>
+        // ИСХОДНЫЕ ДАННЫЕ АЛЬБОМОВ
+        // Теперь у каждого есть уникальный 'id'. Это ключ к решению проблемы.
+        const initialAlbums = [
+        {
+            id: "u-gotta-feel-me-2004",
+            title: "Lil Flip – U Gotta Feel Me",
+            year: "2004",
+            cover: "https://upload.wikimedia.org/wikipedia/en/4/4a/Lil_flip_u_gotta_feel_me.jpg"
+        }
+,
+        {
+            id: "tha-blue-carpet-treatment-2006",
+            title: "Tha Blue Carpet Treatment",
+            year: "2006",
+            cover: "https://upload.wikimedia.org/wikipedia/en/b/b1/Bluecarpet.jpg"
+        }
+];
+
+        // ГЛАВНОЕ ХРАНИЛИЩЕ ДАННЫХ ПРИЛОЖЕНИЯ
+        let appData = []; // Здесь будет храниться массив объектов альбомов со всеми данными
+
+        let draggedAlbum = null; 
+
+        // DOM элементы
+        const albumsContainer = document.getElementById('albumsContainer');
+        const progressFill = document.getElementById('progressFill');
+        const progressPercent = document.getElementById('progressPercent');
+        const counter = document.getElementById('counter');
+        const importBtn = document.getElementById('importBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const importFile = document.getElementById('importFile');
+
+        // --- ОСНОВНЫЕ ФУНКЦИИ УПРАВЛЕНИЯ ДАННЫМИ ---
+
+        /**
+         * Сохраняет текущее состояние (весь массив appData) в localStorage.
+         */
+        function saveData() {
+            try {
+                localStorage.setItem('hipHopAlbumData', JSON.stringify(appData));
+            } catch (e) {
+                console.error("Ошибка сохранения данных в localStorage:", e);
+                alert("Не удалось сохранить данные. Возможно, хранилище переполнено.");
+            }
+        }
+
+        /**
+         * Загружает данные из localStorage. Если данных нет, инициализирует их из initialAlbums.
+         * Также выполняет слияние с initialAlbums, чтобы добавить новые альбомы, если они появились в коде.
+         */
+        function loadData() {
+            try {
+                const savedData = localStorage.getItem('hipHopAlbumData');
+                if (savedData) {
+                    appData = JSON.parse(savedData);
+                } else {
+                    // Первая загрузка: создаем appData из исходного списка
+                    appData = initialAlbums.map(album => ({
+                        ...album,
+                        isChecked: false,
+                        ratings: { yellow: 0, red: 0 }
+                    }));
+                }
+                // Проверяем, появились ли новые альбомы в initialAlbums, и добавляем их
+                mergeWithInitialData();
+                saveData(); // Сохраняем на случай, если были добавлены новые альбомы
+            } catch (e) {
+                console.error("Ошибка загрузки данных из localStorage:", e);
+                // В случае ошибки, сбрасываем до исходного состояния
+                appData = initialAlbums.map(album => ({ ...album, isChecked: false, ratings: { yellow: 0, red: 0 } }));
+                alert("Не удалось загрузить сохраненные данные. Возможно, они повреждены. Загружены данные по умолчанию.");
+            }
+        }
+
+        /**
+         * Сравнивает текущие данные с исходными и добавляет новые альбомы, не затрагивая старые.
+         */
+        function mergeWithInitialData() {
+            const savedIds = new Set(appData.map(album => album.id));
+            initialAlbums.forEach(initialAlbum => {
+                if (!savedIds.has(initialAlbum.id)) {
+                    console.log(`Найден новый альбом: ${initialAlbum.title}. Добавляем в список.`);
+                    appData.push({
+                        ...initialAlbum,
+                        isChecked: false,
+                        ratings: { yellow: 0, red: 0 }
+                    });
+                }
+            });
+        }
+
+        // --- ФУНКЦИИ РЕНДЕРИНГА И ОБНОВЛЕНИЯ ИНТЕРФЕЙСА ---
+
+        /**
+         * Полностью перерисовывает список альбомов на основе данных из appData.
+         */
+        function renderAlbums() {
+            albumsContainer.innerHTML = '';
+            
+            appData.forEach((album, index) => {
+                const albumElement = document.createElement('div');
+                albumElement.className = 'album';
+                albumElement.setAttribute('draggable', 'true');
+                albumElement.dataset.id = album.id; // Используем ID для идентификации
+                albumElement.dataset.index = index; // Индекс для перетаскивания
+
+                albumElement.innerHTML = `
+                    <input type="checkbox" class="album-checkbox" data-id="${album.id}" ${album.isChecked ? 'checked' : ''}>
+                    <img src="${album.cover}" alt="${album.title}" class="album-cover">
+                    <div class="album-info">
+                        <div class="album-title" title="${album.title}">${album.title}</div>
+                        <div class="album-year">${album.year}</div>
+                        <div class="ratings-row">
+                            <div class="rating-group">
+                                <div class="album-rating yellow" data-type="yellow">
+                                    <span class="star" data-value="5"></span><span class="star" data-value="4"></span><span class="star" data-value="3"></span><span class="star" data-value="2"></span><span class="star" data-value="1"></span>
+                                </div>
+                            </div>
+                            <div class="rating-group">
+                                <div class="album-rating red" data-type="red">
+                                    <span class="star" data-value="5"></span><span class="star" data-value="4"></span><span class="star" data-value="3"></span><span class="star" data-value="2"></span><span class="star" data-value="1"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="album-overlay"></div>
+                `;
+                albumsContainer.appendChild(albumElement);
+                
+                // Применение сохраненных оценок
+                const yellowRating = albumElement.querySelector('.yellow');
+                const redRating = albumElement.querySelector('.red');
+                applyRating(yellowRating, album.ratings.yellow);
+                applyRating(redRating, album.ratings.red);
+            });
+            
+            addEventListeners();
+            updateProgress();
+        }
+
+        /**
+         * Обновляет прогресс-бар и счетчик на основе текущих данных.
+         */
+        function updateProgress() {
+            const total = appData.length;
+            const checkedCount = appData.filter(album => album.isChecked).length;
+            
+            const percent = total > 0 ? Math.round((checkedCount / total) * 100) : 0;
+            
+            progressFill.style.width = `${percent}%`;
+            progressFill.textContent = `${percent}%`;
+            progressPercent.textContent = `${percent}%`;
+            counter.textContent = `${checkedCount} из ${total} альбомов прослушано`;
+        }
+        
+        /**
+         * Применяет визуальное отображение рейтинга (закрашивает звезды).
+         */
+        function applyRating(ratingContainer, ratingValue) {
+            const stars = ratingContainer.querySelectorAll('.star');
+            stars.forEach(s => s.classList.remove('rated'));
+            if (ratingValue > 0) {
+                // Звезды в DOM идут от 5 до 1, а в CSS direction: rtl, поэтому логика верная.
+                for (let i = 1; i <= ratingValue; i++) {
+                    stars[stars.length - i].classList.add('rated');
+                }
+            }
+        }
+        
+        // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+
+        function addEventListeners() {
+            // Чекбоксы
+            document.querySelectorAll('.album-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', handleCheckboxChange);
+            });
+            // Звезды рейтинга
+            document.querySelectorAll('.album-rating .star').forEach(star => {
+                star.addEventListener('click', handleStarClick);
+            });
+            // Drag-n-Drop
+            document.querySelectorAll('.album').forEach(albumEl => {
+                albumEl.addEventListener('dragstart', handleDragStart);
+                albumEl.addEventListener('dragover', handleDragOver);
+                albumEl.addEventListener('drop', handleDrop);
+                albumEl.addEventListener('dragend', handleDragEnd);
+            });
+        }
+        
+        function handleCheckboxChange(e) {
+            const albumId = e.target.dataset.id;
+            const album = appData.find(a => a.id === albumId);
+            if (album) {
+                album.isChecked = e.target.checked;
+                saveData();
+                updateProgress();
+                // Обновляем родительский элемент для отображения overlay
+                e.target.closest('.album').querySelector('.album-checkbox').checked = album.isChecked;
+            }
+        }
+
+        function handleStarClick(e) {
+            const star = e.target;
+            const ratingContainer = star.closest('.album-rating');
+            const albumElement = star.closest('.album');
+            const albumId = albumElement.dataset.id;
+            const ratingType = ratingContainer.dataset.type;
+            let ratingValue = parseInt(star.dataset.value);
+
+            const album = appData.find(a => a.id === albumId);
+            if (album) {
+                // Если кликнули на ту же звезду, сбрасываем рейтинг
+                if (album.ratings[ratingType] === ratingValue) {
+                    ratingValue = 0;
+                }
+                album.ratings[ratingType] = ratingValue;
+                saveData();
+                applyRating(ratingContainer, ratingValue);
+            }
+        }
+
+        // --- ФУНКЦИИ ДЛЯ ПЕРЕТАСКИВАНИЯ (теперь работают надежно) ---
+        function handleDragStart(e) {
+            draggedAlbum = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', this.dataset.index);
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            if (this === draggedAlbum) return;
+
+            const targetIndex = parseInt(this.dataset.index);
+            const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            
+            if (sourceIndex !== targetIndex) {
+                // Просто меняем порядок элементов в главном массиве appData
+                const [movedItem] = appData.splice(sourceIndex, 1);
+                appData.splice(targetIndex, 0, movedItem);
+                
+                // Сохраняем новый порядок и перерисовываем все
+                saveData();
+                renderAlbums();
+            }
+        }
+
+        function handleDragEnd() {
+            this.classList.remove('dragging');
+            draggedAlbum = null;
+        }
+
+        // --- ФУНКЦИИ ИМПОРТА/ЭКСПОРТА ---
+
+        function handleExport() {
+            const dataStr = JSON.stringify(appData, null, 2); // null, 2 для красивого форматирования
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'hip-hop-albums-backup.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert('Данные экспортированы в файл hip-hop-albums-backup.json');
+        }
+
+        function handleImport() {
+            importFile.click();
+        }
+
+        function processImportedFile(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const importedData = JSON.parse(event.target.result);
+                    // Простая проверка, что это нужный формат
+                    if (Array.isArray(importedData) && importedData.length > 0 && 'id' in importedData[0] && 'title' in importedData[0]) {
+                        if (confirm('Вы уверены, что хотите заменить все текущие данные импортированными? Это действие необратимо.')) {
+                            appData = importedData;
+                            saveData();
+                            renderAlbums();
+                            alert('Данные успешно импортированы!');
+                        }
+                    } else {
+                        alert('Ошибка: файл имеет неверный формат.');
+                    }
+                } catch (err) {
+                    alert('Ошибка при чтении файла. Убедитесь, что это корректный JSON файл.');
+                    console.error("Ошибка импорта:", err);
+                }
+            };
+            reader.readAsText(file);
+            // Сбрасываем значение input, чтобы можно было загрузить тот же файл еще раз
+            e.target.value = '';
+        }
+
+        // --- ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            renderAlbums();
+            
+            exportBtn.addEventListener('click', handleExport);
+            importBtn.addEventListener('click', handleImport);
+            importFile.addEventListener('change', processImportedFile);
+        });
+    </script>
+</body>
+</html>
